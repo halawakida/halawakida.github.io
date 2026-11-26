@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catering &amp; events | Halawa Kida</title>
+<meta name="description" content="Dessert tables and catering for weddings, Eid, showers and offices in Central New Jersey. Handmade baklava, kunafa and cakes by Halawa Kida.">
+<link rel="icon" href="../assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Inter:wght@400;500;600;700&amp;family=Kaushan+Script&amp;display=swap">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-root="../" data-page="catering">
+<div id="site-header"></div>
+<main id="main">
+  <section class="hero" style="padding-top:32px">
+    <div class="wrap">
+      <div class="hero-copy">
+        <div class="eyebrow">Catering &amp; dessert tables</div>
+        <h1>A dessert table people talk about.</h1>
+        <p>Weddings, engagements, Eid, showers, iftars and office celebrations. Pick a package by guest count and Shireen plans the mix.</p>
+        <div class="actions"><a class="btn btn-pist" href="#quote">Get a quote</a></div>
+      </div>
+      <div class="hero-img"><img src="../assets/img/platter-angle.jpg" alt="Mixed baklava platter ready for an event" style="border-radius:18px;aspect-ratio:5/4"></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <h2>Packages</h2>
+      <div class="two" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+        <div class="panel" style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:26px">Sweet table</h3><div><span style="font-family:var(--display);font-size:42px;font-weight:600">$12</span> per guest</div><span class="small">3 pieces per guest · walnut squares, fingers, chocolate rolls · labeled trays</span></div>
+        <div class="panel darkp" style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:26px">Signature table</h3><div><span style="font-family:var(--display);font-size:42px;font-weight:600">$15</span> per guest</div><span style="font-size:14px;color:#D9D3C7">4 pieces per guest · adds pistachio cream triangles, platters and a pistachio kunafa cake per 25 guests</span></div>
+        <div class="panel" style="display:flex;flex-direction:column;gap:10px"><h3 style="font-size:26px">Grand table</h3><div><span style="font-family:var(--display);font-size:42px;font-weight:600">$18</span> per guest</div><span class="small">5 pieces per guest · custom flavors and colors · tres leches and cheesecakes</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section tint" id="quote">
+    <div class="wrap">
+      <form id="cater-form" class="panel" novalidate style="display:flex;flex-direction:column;gap:20px;max-width:900px">
+        <div><h2 style="margin:0 0 6px">Get a quote</h2><p class="small" style="margin:0">About two minutes. Shireen replies with the full mix and price.</p></div>
+        <div class="fields">
+          <div class="field"><label for="c-name">Full name</label><input id="c-name" name="name" autocomplete="name" required></div>
+          <div class="field"><label for="c-phone">Phone</label><input id="c-phone" name="phone" type="tel" autocomplete="tel" required></div>
+          <div class="field"><label for="c-email">Email</label><input id="c-email" name="email" type="email" autocomplete="email" required></div>
+          <div class="field"><label for="c-type">Event type</label><select id="c-type" name="type"><option>Wedding or engagement</option><option>Eid or Ramadan</option><option>Office or corporate</option><option>Birthday or shower</option><option>Other</option></select></div>
+          <div class="field"><label for="c-date">Event date</label><input id="c-date" name="date" type="date" required></div>
+          <div class="field"><label for="c-guests">Guests</label><input id="c-guests" name="guests" type="number" min="1" inputmode="numeric" required></div>
+          <div class="field"><label for="c-pkg">Package</label><select id="c-pkg" name="pkg"><option value="Signature table|15">Signature table ($15/guest)</option><option value="Sweet table|12">Sweet table ($12/guest)</option><option value="Grand table|18">Grand table ($18/guest)</option><option value="Not sure yet|0">Not sure yet</option></select></div>
+          <div class="field"><label for="c-method">Pickup or delivery</label><select id="c-method" name="method"><option>Delivery (within 10 miles)</option><option>Pickup in Middlesex</option></select></div>
+        </div>
+        <div class="field"><label for="c-notes">Anything we should know?</label><textarea id="c-notes" name="notes" placeholder="Allergies, colors, favorite flavors"></textarea></div>
+        <input class="hp" type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="ok" id="c-est" aria-live="polite"></div>
+        <div id="c-error" class="error" role="alert"></div>
+        <button class="btn btn-dark" id="c-send" type="submit" style="align-self:flex-start">Send my request</button>
+      </form>
+    </div>
+  </section>
+</main>
+<div id="site-footer"></div>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>

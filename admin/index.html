@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Back office | Halawa Kida</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="../assets/img/favicon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid #F0F0E8}
+td input{min-height:40px;padding:8px}
+.num{text-align:right}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.kpi{background:var(--white);border-radius:12px;padding:14px 16px}
+.kpi b{display:block;font-family:var(--display);font-size:28px}
+</style>
+</head>
+<body>
+<header style="background:var(--choc);color:var(--ivory)"><div class="wrap" style="display:flex;justify-content:space-between;align-items:center;padding-top:14px;padding-bottom:14px;gap:12px;flex-wrap:wrap"><span style="font-family:var(--display);font-size:22px">Halawa Kida · Back office</span><a href="../" style="color:var(--pist)">View website →</a></div></header>
+<main class="wrap" style="padding-top:28px;padding-bottom:64px;display:flex;flex-direction:column;gap:24px">
+  <p class="notice" style="margin:0">Recipes you enter here are saved on <b>this device only</b> (version 1). Use “Download backup” to keep a copy. A shared, password-protected back office comes next.</p>
+
+  <section class="panel" style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+      <div class="field" style="flex:1 1 240px"><label for="r-pick">Recipe</label><select id="r-pick"></select></div>
+      <button class="btn btn-ghost" type="button" id="r-new">New recipe</button>
+      <button class="btn btn-ghost" type="button" id="r-del">Delete recipe</button>
+    </div>
+    <div class="fields">
+      <div class="field"><label for="r-name">Recipe name</label><input id="r-name"></div>
+      <div class="field"><label for="r-serv">Servings it makes</label><input id="r-serv" type="number" min="1"></div>
+      <div class="field"><label for="r-price">Menu price for the batch ($)</label><input id="r-price" type="number" min="0" step="0.01"></div>
+      <div class="field"><label for="r-pack">Packaging per batch ($)</label><input id="r-pack" type="number" min="0" step="0.01"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table aria-label="Ingredients">
+        <thead><tr><th>Ingredient</th><th>Supplier · item #</th><th class="num">Pack price ($)</th><th class="num">Pack size (g)</th><th class="num">Grams used</th><th class="num">Cost</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div><button class="btn btn-ghost" type="button" id="add-row">+ Add ingredient</button></div>
+    <div class="kpis" id="kpis"></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn btn-dark" type="button" id="save">Save</button><button class="btn btn-ghost" type="button" id="backup">Download backup</button><span id="saved" class="small" aria-live="polite" style="align-self:center"></span></div>
+  </section>
+
+  <section class="panel" style="display:flex;flex-direction:column;gap:12px">
+    <h2 style="font-size:26px;margin:0">QR code for the menu</h2>
+    <p class="small" style="margin:0">Prints on business cards, stickers and boxes. It always opens the live menu, so prices can change without reprinting.</p>
+    <div class="field" style="max-width:520px"><label for="qr-url">Link</label><input id="qr-url"></div>
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap"><div id="qr" style="background:#fff;padding:16px;border-radius:12px"></div><button class="btn btn-pist" type="button" id="qr-dl">Download QR (PNG)</button></div>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function(){
+  var KEY="hk_recipes_v1";
+  var sample=[{name:"Pistachio kunafa chocolate cake (9 in)",servings:12,price:75,pack:1.4,rows:[
+    ["Pistachios, raw shelled","Restaurant Depot",62,2268,180],["Pistachio cream","Specialty grocer",18,600,200],["Dark chocolate callets","Restaurant Depot",45,2500,300],
+    ["Kataifi (shredded phyllo)","Middle Eastern grocer",5.5,454,150],["Heavy cream","Costco",5.49,946,500],["Butter, unsalted","Costco",13.99,1814,120],
+    ["Cocoa powder","Costco",16,1000,60],["Eggs, large","Costco",9.99,3000,200],["Sugar","Sam's Club",17.48,11340,200],["Flour, all-purpose","Sam's Club",9.98,11340,140]]}];
+  function load(){try{var r=JSON.parse(localStorage.getItem(KEY));return Array.isArray(r)&&r.length?r:sample;}catch(e){return sample;}}
+  var recipes=load(), cur=0, $=function(id){return document.getElementById(id);};
+  function money(n){return "$"+(isFinite(n)?n:0).toFixed(2);}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function pick(){$("r-pick").innerHTML=recipes.map(function(r,i){return '<option value="'+i+'"'+(i===cur?" selected":"")+">"+esc(r.name)+"</option>";}).join("");}
+  function draw(){
+    var r=recipes[cur]; $("r-name").value=r.name; $("r-serv").value=r.servings; $("r-price").value=r.price; $("r-pack").value=r.pack;
+    $("rows").innerHTML=r.rows.map(function(x,i){return '<tr><td><input aria-label="Ingredient" data-i="'+i+'" data-k="0" value="'+esc(x[0])+'"></td><td><input aria-label="Supplier" data-i="'+i+'" data-k="1" value="'+esc(x[1])+'"></td><td><input class="num" aria-label="Pack price" type="number" step="0.01" data-i="'+i+'" data-k="2" value="'+x[2]+'"></td><td><input class="num" aria-label="Pack size in grams" type="number" data-i="'+i+'" data-k="3" value="'+x[3]+'"></td><td><input class="num" aria-label="Grams used" type="number" data-i="'+i+'" data-k="4" value="'+x[4]+'"></td><td class="num" id="c'+i+'"></td><td><button type="button" class="btn btn-ghost" style="min-height:36px;padding:6px 10px" data-rm="'+i+'" aria-label="Remove '+esc(x[0])+'">×</button></td></tr>';}).join("");
+    calc();
+  }
+  function calc(){
+    var r=recipes[cur], total=+r.pack||0;
+    r.rows.forEach(function(x,i){var c=(+x[3]>0)?(+x[2])/(+x[3])*(+x[4]):0; total+=c; var el=$("c"+i); if(el) el.textContent=money(c);});
+    var per=total/(+r.servings||1), price=+r.price||0, fc=price?total/price*100:0;
+    $("kpis").innerHTML=[["Cost per batch",money(total)],["Cost per serving",money(per)],["Menu price",money(price)],["Food cost",fc.toFixed(0)+"%"],["Profit per batch (before your time)",money(price-total)]].map(function(k){return '<div class="kpi"><span class="small">'+k[0]+"</span><b>"+k[1]+"</b></div>";}).join("");
+  }
+  document.addEventListener("input",function(e){
+    var t=e.target, r=recipes[cur];
+    if(t.dataset.i!=null){r.rows[+t.dataset.i][+t.dataset.k]=t.type==="number"?+t.value:t.value;calc();}
+    if(t.id==="r-name")r.name=t.value; if(t.id==="r-serv")r.servings=+t.value; if(t.id==="r-price")r.price=+t.value; if(t.id==="r-pack")r.pack=+t.value;
+    if(/^r-(serv|price|pack)$/.test(t.id))calc();
+  });
+  document.addEventListener("click",function(e){var b=e.target.closest("[data-rm]");if(b){recipes[cur].rows.splice(+b.dataset.rm,1);draw();}});
+  $("add-row").onclick=function(){recipes[cur].rows.push(["","",0,1000,0]);draw();};
+  $("r-new").onclick=function(){recipes.push({name:"New recipe",servings:12,price:0,pack:0,rows:[["","",0,1000,0]]});cur=recipes.length-1;pick();draw();};
+  $("r-del").onclick=function(){if(recipes.length<2)return;recipes.splice(cur,1);cur=0;pick();draw();};
+  $("r-pick").onchange=function(){cur=+this.value;draw();};
+  $("save").onclick=function(){try{localStorage.setItem(KEY,JSON.stringify(recipes));$("saved").textContent="Saved on this device.";}catch(e){$("saved").textContent="Couldn't save here. Use Download backup.";}pick();};
+  $("backup").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(recipes,null,2)],{type:"application/json"}));a.download="halawa-kida-recipes.json";a.click();};
+  pick();draw();
+  // QR
+  var u=$("qr-url"); u.value=location.origin+location.pathname.replace(/admin\/?(index\.html)?$/,"")+"menu/";
+  var qr=null; function makeQR(){$("qr").innerHTML="";if(window.QRCode){qr=new QRCode($("qr"),{text:u.value,width:220,height:220,colorDark:"#2B1B15",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});}else{$("qr").textContent="QR tool needs an internet connection.";}}
+  u.addEventListener("change",makeQR); makeQR();
+  $("qr-dl").onclick=function(){var c=$("qr").querySelector("canvas");if(!c)return;var a=document.createElement("a");a.href=c.toDataURL("image/png");a.download="halawa-kida-menu-qr.png";a.click();};
+})();
+</script>
+</body>
+</html>

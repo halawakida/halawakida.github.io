@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menu | Halawa Kida</title>
+<meta name="description" content="Halawa Kida menu: baklava, kunafa, pistachio chocolate cake, cheesecakes, tres leches and platters, by the piece or by the tray.">
+<link rel="icon" href="../assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&amp;family=Inter:wght@400;500;600;700&amp;family=Kaushan+Script&amp;display=swap">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body data-root="../" data-page="menu">
+<div id="site-header"></div>
+<main id="main" style="padding-bottom:72px">
+  <div class="wrap menu-head">
+    <h1>Menu</h1>
+    <p class="small" style="margin:0;font-size:16px;max-width:44em">Everything is made to order with at least 24 hours notice. Choose how you are ordering, tap <b>+</b> to add, then check out. You pay by Zelle after Shireen confirms.</p>
+    <div class="toggle" id="mode-toggle" role="group" aria-label="How are you ordering?">
+      <button type="button" data-mode="single" aria-pressed="true">Just for me</button>
+      <button type="button" data-mode="group" aria-pressed="false">For a group</button>
+    </div>
+    <span class="small" id="mode-hint" aria-live="polite">Single pieces and small boxes, with weights.</span>
+    <nav class="chips" aria-label="Menu sections">
+      <a href="#cat-baklava">Baklava</a><a href="#cat-cakes">Kunafa, cakes &amp; tres leches</a><a href="#cat-cheesecake">Cheesecakes</a><a href="#cat-platters">Platters &amp; gift boxes</a>
+    </nav>
+  </div>
+  <div class="wrap" id="menu-list"><p class="small">Loading the menu…</p></div>
+  <noscript><div class="wrap"><p class="notice">Please turn on JavaScript to see the menu and order.</p></div></noscript>
+</main>
+<div class="cartbar" id="cartbar" hidden><div class="wrap"><span id="cartbar-total"></span><a class="btn btn-pist" href="../order/">Review &amp; check out</a></div></div>
+<div id="site-footer"></div>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/site.js"></script>
+</body>
+</html>
