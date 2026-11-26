@@ -14,7 +14,7 @@ window.HK_SETTINGS = {
 
   // Automatic order emails (Web3Forms). Paste the Access Key between the quotes.
   // While this is empty, customers send their order by text or email with one tap instead.
-  web3formsKey: "",
+  web3formsKey: "3113a971-3ba6-48b4-8fbe-469f497435e3",
 
   // Customers can text their order here (also the fallback if email sending ever fails).
   textNumber: "7322776199",
