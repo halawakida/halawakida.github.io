@@ -14,8 +14,9 @@ On GitHub you can edit it in the browser: open the file, click the pencil, chang
 
 ## How orders work
 
-Checkout sends the order to `orderEmail` through FormSubmit (formsubmit.co). The customer gets an
-automatic confirmation with Zelle instructions. Orders must be at least `leadHours` (24) hours ahead.
+Checkout emails the order through Web3Forms (key `web3formsKey` in config.js; account: adamseoudy42.business@gmail.com).
+If sending ever fails, the customer gets one-tap "Text my order" / "Email my order" buttons instead, so no order is lost.
+Orders must be at least `leadHours` (24) hours ahead. Live site: https://halawakida.github.io
 
 ## Pages
 
