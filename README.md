@@ -21,3 +21,7 @@ automatic confirmation with Zelle instructions. Orders must be at least `leadHou
 
 - `/` home · `/menu/` menu (the QR code target) · `/order/` cart and checkout · `/catering/` quote form
 - `/admin/` back office: recipe cost calculator (saved on the device) and QR code generator
+
+## After editing config.js
+
+Bump the `?v=` number on the `config.js` script tags in each page (or ask Claude) so visitors get the new version right away instead of a cached copy.
