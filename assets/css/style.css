@@ -132,3 +132,16 @@ footer .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr
 footer a{color:#D9D3C7}
 footer .h{color:var(--ivory);font-weight:600;display:block;margin-bottom:6px}
 footer .legal{font-size:13px;color:#9C9385;padding-bottom:28px}
+
+/* two-way send steps */
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.step{border:1.5px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--white)}
+.step.is-done{border-color:var(--pist);background:var(--pist-tint)}
+.step-head{display:flex;gap:12px;align-items:flex-start}
+.step-n{flex:0 0 32px;height:32px;border-radius:999px;background:var(--choc);color:var(--ivory);display:flex;align-items:center;justify-content:center;font-weight:700}
+.step.is-done .step-n{background:var(--pist-ink)}
+.step-body{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding-left:44px}
+.linkbtn{background:none;border:0;padding:6px 0;font:inherit;font-size:14px;color:var(--pist-ink);text-decoration:underline;cursor:pointer}
+.qr{background:#fff;padding:10px;border-radius:10px;border:1px solid var(--line)}
+.qr img,.qr canvas{display:block}
+@media (max-width:480px){.step-body{padding-left:0}}

@@ -175,17 +175,59 @@
       return j;
     }); });
   }
-  // One-tap backup: the customer sends the order themselves by text or email. Nothing is ever lost.
-  function manualSend(title, text) {
-    var num = String(S.textNumber || "").replace(/\D/g, ""), pretty = num.length === 10 ? "(" + num.slice(0, 3) + ") " + num.slice(3, 6) + "-" + num.slice(6) : num;
-    var sms = "sms:+1" + num + "?&body=" + encodeURIComponent(text);
-    var mail = "mailto:" + S.orderEmail + "?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text);
-    return '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px">' +
-      '<h1 style="font-size:34px">Last step: send it to Shireen</h1>' +
-      '<p style="margin:0">Tap one button. Your order is already written out, you just press send.</p>' +
-      '<div class="actions"><a class="btn btn-pist" href="' + sms + '">Text my order</a><a class="btn btn-dark" href="' + mail + '">Email my order</a></div>' +
-      '<p class="small" style="margin:0">Or send it yourself to ' + esc(pretty) + " or " + esc(S.orderEmail) + ":</p>" +
-      '<textarea readonly style="min-height:220px" aria-label="Your order">' + esc(text) + "</textarea></div>";
+  /* ---------- "send it BOTH ways" steps (text AND email, never either/or) ---------- */
+  var IS_PHONE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  function digits(n) { return String(n || "").replace(/\D/g, ""); }
+  function prettyPhone(n) { var d = digits(n); if (d.length === 11 && d.charAt(0) === "1") d = d.slice(1); return d.length === 10 ? "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6) : String(n || ""); }
+  function smsHref(num, text) { var d = digits(num); if (d.length === 10) d = "1" + d; return "sms:+" + d + "?&body=" + encodeURIComponent(text); }
+  function mailHref(to, subj, text) { return "mailto:" + to + "?subject=" + encodeURIComponent(subj) + "&body=" + encodeURIComponent(text); }
+  var memState = {};
+  function loadState(k) { try { return JSON.parse(localStorage.getItem(k) || "null") || memState[k] || {}; } catch (e) { return memState[k] || {}; } }
+  function saveState(k, s) { memState[k] = s; try { localStorage.setItem(k, JSON.stringify(s)); } catch (e) {} }
+  function drawQR(box, text) {
+    function go() { box.innerHTML = ""; try { new window.QRCode(box, { text: text, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.L }); } catch (e) { box.textContent = "Couldn't draw the code. Please text the message below from your phone."; } }
+    if (window.QRCode) return go();
+    var s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    s.onload = go; s.onerror = function () { box.textContent = "Please text the message below from your phone."; }; document.head.appendChild(s);
+  }
+  // cfg: { key, el, title, intro, doneTitle, doneHtml, text, steps: [{ id, kind: "auto"|"sms"|"email", ok, label, to, button, href }] }
+  function runSteps(cfg) {
+    var st = loadState(cfg.key);
+    cfg.steps.forEach(function (s) { if (s.kind === "auto") st[s.id] = true; });
+    saveState(cfg.key, st);
+    function draw() {
+      var all = cfg.steps.every(function (s) { return st[s.id]; });
+      var html = '<div class="panel" style="max-width:720px;margin:32px auto;display:flex;flex-direction:column;gap:16px">' +
+        '<h1 style="font-size:32px">' + esc(all ? cfg.doneTitle : cfg.title) + "</h1>" + (all ? "" : '<p style="margin:0">' + cfg.intro + "</p>") + '<ol class="steps">';
+      cfg.steps.forEach(function (s, i) {
+        var ok = st[s.id];
+        html += '<li class="step' + (ok ? " is-done" : "") + '"><div class="step-head"><span class="step-n" aria-hidden="true">' + (ok ? "✓" : i + 1) + "</span><span><b>" + esc(ok && s.doneLabel ? s.doneLabel : s.label) + "</b>" +
+          (ok ? ' <span class="small">· done</span>' : "") + '<br><span class="small">' + esc(s.to) + "</span></span></div>";
+        if (!ok) {
+          html += '<div class="step-body">';
+          if (s.kind === "sms" && !IS_PHONE) {
+            html += '<p class="small" style="margin:0">On a computer? Point your phone camera at this code. It opens the text, already written. Just press send.</p><div class="qr" data-qr="' + esc(s.href) + '"></div>' +
+              '<button type="button" class="btn btn-dark" data-done="' + s.id + '">I sent the text</button>';
+          } else {
+            html += '<a class="btn ' + (s.kind === "sms" ? "btn-pist" : "btn-dark") + '" href="' + esc(s.href) + '" data-go="' + s.id + '">' + esc(s.button) + "</a>" +
+              '<button type="button" class="linkbtn" data-done="' + s.id + '">I already sent it</button>';
+          }
+          html += "</div>";
+        }
+        html += "</li>";
+      });
+      html += "</ol>" + (all ? cfg.doneHtml : "") +
+        '<details><summary class="small" style="cursor:pointer">See the message</summary><pre style="white-space:pre-wrap;font:inherit;margin:8px 0 0">' + esc(cfg.text) + "</pre></details></div>";
+      cfg.el.innerHTML = html;
+      Array.prototype.forEach.call(cfg.el.querySelectorAll("[data-qr]"), function (b) { drawQR(b, b.getAttribute("data-qr")); });
+    }
+    cfg.el.onclick = function (e) {
+      var g = e.target.closest("[data-go]"), d = e.target.closest("[data-done]"), r = e.target.closest("[data-reset]");
+      if (r && cfg.onReset) return cfg.onReset();
+      var id = (g && g.getAttribute("data-go")) || (d && d.getAttribute("data-done")); if (!id) return;
+      setTimeout(function () { st[id] = true; saveState(cfg.key, st); draw(); }, g ? 900 : 0);
+    };
+    draw(); window.scrollTo(0, 0);
   }
   function orderNo() {
     var d = new Date(), a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", s = "";
@@ -222,7 +264,7 @@
         '<input class="hp" type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true">' +
         '<div id="form-error" class="error" role="alert"></div>' +
         '<button class="btn btn-dark" type="submit" id="place">Place order · ' + money(cartTotal()) + "</button>" +
-        '<p class="hint" style="margin:0">Placing an order does not charge you. Shireen will confirm by email or text, then you pay by Zelle.</p></form>' +
+        '<p class="hint" style="margin:0">Placing an order does not charge you. Next, you send your order to Shireen by email and text (one tap each). She confirms by text and email, then you pay by Zelle.</p></form>' +
         '<aside class="summary" aria-label="Order summary"><h2 style="font-size:26px;margin-bottom:8px">Your order</h2><div id="lines"></div><div class="total"><span>Total</span><span id="sum-total"></span></div>' +
         '<a href="' + ROOT + 'menu/" class="small" style="display:inline-block;margin-top:12px">+ Add more items</a></aside></div>';
       drawLines();
@@ -279,8 +321,19 @@
         "\n" + method + ": " + whenText + (method === "Delivery" ? "\nAddress: " + v("address") + " " + v("zip") : "") +
         "\n\n" + itemsText + "\nTotal: " + money(total) + (v("notes") ? "\n\nNotes: " + v("notes") : "") + "\n\nI'll pay by Zelle once you confirm." +
         "\n\n(Shireen: confirm or decline here: " + confirmUrl + " )";
-      function showManual() { saveCart([]); root.innerHTML = manualSend("Halawa Kida order " + no, manualText); window.scrollTo(0, 0); }
-      if (!canSend()) { showManual(); return; }
+      var first = v("name").split(" ")[0];
+      var doneHtml = '<div class="notice"><b>Order request sent. Not confirmed yet.</b> Shireen will confirm by text and email that she can make it. Please don\'t pay until then.</div>' +
+        '<p style="margin:0">Order <b>' + no + "</b> · " + esc(method) + " · " + esc(whenText) + "</p>" +
+        '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(itemsText) + "\nTotal: " + money(total) + "</pre>" +
+        '<div class="ok"><b>After Shireen confirms:</b> pay <b>' + money(total) + "</b> by Zelle to <b>" + esc(S.zelle.to) + "</b> (" + esc(S.zelle.name) + ") with <b>" + no + "</b> in the memo. Screenshot this page for your records.</div>" +
+        '<a class="btn btn-pist" href="' + ROOT + '" style="align-self:flex-start">Back to home</a>';
+      function finish(emailOk) {
+        saveCart([]);
+        var pending = { no: no, emailOk: emailOk, text: manualText, first: first, doneHtml: doneHtml, ts: Date.now() };
+        try { localStorage.setItem("hk_pending_order", JSON.stringify(pending)); } catch (x) {}
+        showOrderSteps(pending);
+      }
+      if (!canSend()) { finish(false); return; }
       var btn = $("#place"); btn.disabled = true; btn.textContent = "Sending your order…";
       send({
         _subject: "New order request " + no + " · " + v("name") + " · " + method + " " + whenText + " (tap to confirm)",
@@ -289,17 +342,24 @@
         "Pickup or delivery": method, "Date & time": whenText,
         Address: method === "Delivery" ? v("address") + " " + v("zip") : "—",
         Items: itemsText, Total: money(total), Payment: "Zelle to " + S.zelle.to + " after you confirm", Notes: v("notes") || "—"
-      }).then(function () {
-        saveCart([]);
-        root.innerHTML = '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px"><div class="notice"><b>Order request sent. Not confirmed yet.</b> Shireen will text or email you to confirm she can make it. Please don\'t pay until then.</div>' +
-          '<h1 style="font-size:36px">Thank you, ' + esc(v("name").split(" ")[0]) + '!</h1><p style="margin:0">Order <b>' + no + "</b> · " + esc(method) + " · " + esc(whenText) + "</p>" +
-          '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(itemsText) + "\nTotal: " + money(total) + "</pre>" +
-          '<div class="ok"><b>After Shireen confirms:</b> pay <b>' + money(total) + "</b> by Zelle to <b>" + esc(S.zelle.to) + "</b> (" + esc(S.zelle.name) + ") with <b>" + no + "</b> in the memo. Screenshot this page for your records.</div>" +
-          '<a class="btn btn-pist" href="' + ROOT + '" style="align-self:flex-start">Back to home</a></div>';
-        window.scrollTo(0, 0);
-      }).catch(function () { showManual(); });
+      }).then(function () { finish(true); }).catch(function () { finish(false); });
     }
-    draw();
+    function showOrderSteps(p) {
+      runSteps({
+        key: "hk_steps_" + p.no, el: root,
+        title: "Almost done: send your order to Shireen",
+        intro: "Your order goes to Shireen by <b>email and by text</b>. Finish both steps below. Each message is already written, you just press send.",
+        doneTitle: "Thank you, " + p.first + "!", doneHtml: p.doneHtml, text: p.text,
+        steps: [
+          p.emailOk ? { id: "email", kind: "auto", label: "Emailed to Shireen", to: "Sent automatically to " + S.orderEmail }
+                    : { id: "email", kind: "email", label: "Email your order to Shireen", doneLabel: "Emailed to Shireen", to: S.orderEmail, button: "Email my order", href: mailHref(S.orderEmail, "Halawa Kida order " + p.no, p.text) },
+          { id: "text", kind: "sms", label: "Text your order to Shireen", doneLabel: "Texted to Shireen", to: prettyPhone(S.textNumber), button: "Text my order to Shireen", href: smsHref(S.textNumber, p.text) }
+        ]
+      });
+    }
+    // Coming back from the Messages app: pick up where the customer left off.
+    var pend = null; try { pend = JSON.parse(localStorage.getItem("hk_pending_order") || "null"); } catch (x) {}
+    if (pend && !cartLines().length && Date.now() - pend.ts < 6 * 3600 * 1000) showOrderSteps(pend); else draw();
   }
 
   /* ---------- catering page ---------- */
@@ -322,8 +382,22 @@
       var cText = "Hi Shireen! Catering request from the Halawa Kida website\n\nName: " + v("name") + "\nPhone: " + v("phone") + "\nEmail: " + v("email") +
         "\nEvent: " + v("type") + " on " + prettyDate(v("date")) + "\nGuests: " + v("guests") + "\nPackage: " + pk.value.split("|")[0] + "\n" + est.textContent +
         "\n" + v("method") + (v("notes") ? "\nNotes: " + v("notes") : "");
-      function showManualC() { f.outerHTML = manualSend("Catering request", cText); }
-      if (!canSend()) { showManualC(); return; }
+      function finishC(emailOk) {
+        var box = document.createElement("div"); f.parentNode.replaceChild(box, f);
+        runSteps({
+          key: "hk_cater_" + Date.now(), el: box,
+          title: "Almost done: send your request to Shireen",
+          intro: "Your request goes to Shireen by <b>email and by text</b>. Finish both steps. Each message is already written.",
+          doneTitle: "Request sent!", text: cText,
+          doneHtml: '<div class="ok"><b>Thank you, ' + esc(v("name").split(" ")[0]) + '.</b> Shireen will reply by text and email with your quote.</div>',
+          steps: [
+            emailOk ? { id: "email", kind: "auto", label: "Emailed to Shireen", to: "Sent automatically to " + S.orderEmail }
+                    : { id: "email", kind: "email", label: "Email your request to Shireen", doneLabel: "Emailed to Shireen", to: S.orderEmail, button: "Email my request", href: mailHref(S.orderEmail, "Catering request", cText) },
+            { id: "text", kind: "sms", label: "Text your request to Shireen", doneLabel: "Texted to Shireen", to: prettyPhone(S.textNumber), button: "Text my request to Shireen", href: smsHref(S.textNumber, cText) }
+          ]
+        });
+      }
+      if (!canSend()) { finishC(false); return; }
       var btn = $("#c-send"); btn.disabled = true; btn.textContent = "Sending…";
       send({
         _subject: "Catering request · " + v("name") + " · " + prettyDate(v("date")) + " · " + v("guests") + " guests",
@@ -331,9 +405,7 @@
         _autoresponse: "Thank you for your catering request with Halawa Kida! Shireen will reply with a quote shortly.",
         Name: v("name"), Phone: v("phone"), email: v("email"), "Event type": v("type"), "Event date": prettyDate(v("date")),
         Guests: v("guests"), Package: pk.value.split("|")[0], Estimate: est.textContent, "Pickup or delivery": v("method"), Notes: v("notes") || "—"
-      }).then(function () {
-        f.innerHTML = '<div class="ok"><b>Request sent.</b> Shireen will reply to ' + esc(v("email")) + " with a quote.</div>";
-      }).catch(function () { showManualC(); });
+      }).then(function () { finishC(true); }).catch(function () { finishC(false); });
     });
   }
 
@@ -359,20 +431,42 @@
       "\n\nPlease send " + o.t + " by Zelle to " + S.zelle.to + " (" + S.zelle.name + ") and put " + o.n + " in the memo. Thank you so much!";
     var no = "Hi " + first + ", this is Shireen from Halawa Kida. Thank you for your order " + o.n + "! Unfortunately I can't make it for " + o.w +
       ". Would another day work for you? Just reply and I'll take care of you. Please don't send any payment for this order.";
-    function sms(t) { return "sms:+" + phone + "?&body=" + encodeURIComponent(t); }
-    function mail(subj, t) { return "mailto:" + o.e + "?subject=" + encodeURIComponent(subj) + "&body=" + encodeURIComponent(t); }
-    root.innerHTML =
-      '<div class="panel" style="display:flex;flex-direction:column;gap:14px">' +
+    var ckey = "hk_conf_" + o.n, choice = loadState(ckey).choice;
+    var summary = '<div class="panel" style="display:flex;flex-direction:column;gap:14px">' +
       '<div class="eyebrow" style="color:var(--pist-ink)">Order ' + esc(o.n) + "</div>" +
       '<h1 style="font-size:34px">' + esc(o.c) + "</h1>" +
       '<p style="margin:0"><b>' + esc(place) + "</b><br>" + esc(o.p) + " · " + esc(o.e) + "</p>" +
       '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(o.i) + "\nTotal: " + esc(o.t) + "</pre>" +
-      (o.x ? '<p class="notice" style="margin:0"><b>Customer notes:</b> ' + esc(o.x) + "</p>" : "") + "</div>" +
-      '<div class="panel" style="display:flex;flex-direction:column;gap:12px;margin-top:16px"><h2 style="font-size:24px;margin:0">Can you make it?</h2>' +
-      '<p class="small" style="margin:0">Each button opens a ready-to-send message to the customer. You can edit it before you press send.</p>' +
-      '<div class="actions"><a class="btn btn-pist" href="' + sms(yes) + '">Yes, confirm by text</a><a class="btn btn-dark" href="' + mail("Your Halawa Kida order " + o.n + " is confirmed", yes) + '">Confirm by email</a></div>' +
-      '<div class="actions" style="margin-top:4px"><a class="btn btn-ghost" href="' + sms(no) + '">Can\'t make it (text)</a><a class="btn btn-ghost" href="' + mail("About your Halawa Kida order " + o.n, no) + '">Can\'t make it (email)</a></div>' +
-      '<details><summary class="small" style="cursor:pointer">See the confirmation message</summary><pre style="white-space:pre-wrap;font:inherit;margin:8px 0 0">' + esc(yes) + "</pre></details></div>";
+      (o.x ? '<p class="notice" style="margin:0"><b>Customer notes:</b> ' + esc(o.x) + "</p>" : "") + "</div>";
+    if (!choice) {
+      root.innerHTML = summary + '<div class="panel" style="display:flex;flex-direction:column;gap:12px;margin-top:16px"><h2 style="font-size:24px;margin:0">Can you make it?</h2>' +
+        '<p class="small" style="margin:0">Next you\'ll send the customer a text <b>and</b> an email. Both are already written for you.</p>' +
+        '<div class="actions"><button type="button" class="btn btn-pist" data-choice="yes">Yes, I can make it</button><button type="button" class="btn btn-ghost" data-choice="no">I can\'t make it</button></div></div>';
+      root.onclick = function (e) {
+        var b = e.target.closest("[data-choice]"); if (!b) return;
+        saveState(ckey, { choice: b.getAttribute("data-choice") }); confirmPage();
+      };
+      return;
+    }
+    var isYes = choice === "yes", msg = isYes ? yes : no;
+    var subj = isYes ? "Your Halawa Kida order " + o.n + " is confirmed" : "About your Halawa Kida order " + o.n;
+    var stepsBox = document.createElement("div");
+    root.innerHTML = summary; root.appendChild(stepsBox);
+    root.onclick = null;
+    runSteps({
+      key: ckey + "_" + choice, el: stepsBox,
+      title: isYes ? "Confirm with " + first + ": text and email" : "Let " + first + " know: text and email",
+      intro: "Send <b>both</b> so " + esc(first) + " is sure to see it. Each one opens already written. You can edit it before you press send.",
+      doneTitle: isYes ? "Confirmed. " + first + " got a text and an email." : "Done. " + first + " got a text and an email.",
+      doneHtml: '<div class="ok">' + (isYes ? "Watch for " + esc(o.t) + " by Zelle with " + esc(o.n) + " in the memo." : "No payment is due for this order.") + "</div>" +
+        '<button type="button" class="linkbtn" data-reset="1">Change my answer</button>',
+      text: msg,
+      onReset: function () { saveState(ckey, {}); saveState(ckey + "_yes", {}); saveState(ckey + "_no", {}); confirmPage(); },
+      steps: [
+        { id: "text", kind: "sms", label: "Text " + first, doneLabel: "Texted " + first, to: prettyPhone(o.p), button: "Send the text to " + first, href: smsHref(o.p, msg) },
+        { id: "email", kind: "email", label: "Email " + first, doneLabel: "Emailed " + first, to: o.e, button: "Send the email to " + first, href: mailHref(o.e, subj, msg) }
+      ]
+    });
   }
 
   /* ---------- boot ---------- */

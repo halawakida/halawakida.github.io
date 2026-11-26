@@ -20,8 +20,12 @@ Orders must be at least `leadHours` (24) hours ahead. Live site: https://halawak
 
 ## Confirming orders
 
-Every order email has a "CONFIRM OR DECLINE THIS ORDER" link. It opens `/confirm/` with the order, and buttons that
-open a ready-to-send text or email to the customer: confirmed (with Zelle instructions) or can't make it.
+Orders reach Shireen by email (automatic, Web3Forms) AND text (the customer sends a pre-written text as a required last
+step of checkout; on a computer they scan a QR code). Shireen's phone is on AT&T, which has no free email-to-text, so
+fully automatic texts would need a paid service like Twilio.
+
+Every order email/text has a "CONFIRM OR DECLINE" link to `/confirm/`. Shireen taps Yes or Can't, then is walked
+through sending the customer BOTH a text and an email (pre-written). It only shows Done when both are sent.
 Customers are told their order is not confirmed and not to pay until Shireen confirms.
 
 ## Pages
