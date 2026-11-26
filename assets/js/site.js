@@ -271,27 +271,30 @@
       var no = orderNo(), lines = cartLines(), total = cartTotal();
       var itemsText = lines.map(function (l) { return l.qty + " × " + l.item.name + " (" + l.opt.label + ") — " + money(l.opt.price * l.qty); }).join("\n");
       var whenText = prettyDate(v("date")) + " at " + label12(v("time"));
+      var confirmUrl = new URL(ROOT + "confirm/", location.href).href + "#" + packOrder({
+        n: no, c: v("name"), p: v("phone"), e: v("email"), m: method, w: whenText,
+        a: method === "Delivery" ? v("address") + " " + v("zip") : "", i: itemsText, t: money(total), x: v("notes")
+      });
       var manualText = "Hi Shireen! New Halawa Kida order " + no + "\n\nName: " + v("name") + "\nPhone: " + v("phone") + "\nEmail: " + v("email") +
         "\n" + method + ": " + whenText + (method === "Delivery" ? "\nAddress: " + v("address") + " " + v("zip") : "") +
-        "\n\n" + itemsText + "\nTotal: " + money(total) + (v("notes") ? "\n\nNotes: " + v("notes") : "") + "\n\nI'll pay by Zelle once you confirm.";
+        "\n\n" + itemsText + "\nTotal: " + money(total) + (v("notes") ? "\n\nNotes: " + v("notes") : "") + "\n\nI'll pay by Zelle once you confirm." +
+        "\n\n(Shireen: confirm or decline here: " + confirmUrl + " )";
       function showManual() { saveCart([]); root.innerHTML = manualSend("Halawa Kida order " + no, manualText); window.scrollTo(0, 0); }
       if (!canSend()) { showManual(); return; }
       var btn = $("#place"); btn.disabled = true; btn.textContent = "Sending your order…";
       send({
-        _subject: "New order " + no + " · " + v("name") + " · " + method + " " + whenText,
-        _template: "table", _captcha: "false",
-        _autoresponse: "Thank you for your order with Halawa Kida! Order " + no + ".\n\n" + itemsText + "\nTotal: " + money(total) + "\n" + method + ": " + whenText +
-          "\n\nShireen will confirm your order shortly. Then please pay by Zelle to " + S.zelle.to + " (" + S.zelle.name + ") and put " + no + " in the memo.",
+        _subject: "New order request " + no + " · " + v("name") + " · " + method + " " + whenText + " (tap to confirm)",
+        "CONFIRM OR DECLINE THIS ORDER (tap the link)": confirmUrl,
         "Order number": no, Name: v("name"), Phone: v("phone"), email: v("email"),
         "Pickup or delivery": method, "Date & time": whenText,
         Address: method === "Delivery" ? v("address") + " " + v("zip") : "—",
-        Items: itemsText, Total: money(total), Payment: "Zelle to " + S.zelle.to + " (pending)", Notes: v("notes") || "—"
+        Items: itemsText, Total: money(total), Payment: "Zelle to " + S.zelle.to + " after you confirm", Notes: v("notes") || "—"
       }).then(function () {
         saveCart([]);
-        root.innerHTML = '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px"><div class="ok"><b>Order sent to Shireen.</b> She will confirm by text or email. Screenshot this page for your records.</div>' +
+        root.innerHTML = '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px"><div class="notice"><b>Order request sent. Not confirmed yet.</b> Shireen will text or email you to confirm she can make it. Please don\'t pay until then.</div>' +
           '<h1 style="font-size:36px">Thank you, ' + esc(v("name").split(" ")[0]) + '!</h1><p style="margin:0">Order <b>' + no + "</b> · " + esc(method) + " · " + esc(whenText) + "</p>" +
           '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(itemsText) + "\nTotal: " + money(total) + "</pre>" +
-          '<div class="notice"><b>Next:</b> Shireen will confirm your order by email or text. Then pay <b>' + money(total) + "</b> by Zelle to <b>" + esc(S.zelle.to) + "</b> (" + esc(S.zelle.name) + ") with <b>" + no + "</b> in the memo.</div>" +
+          '<div class="ok"><b>After Shireen confirms:</b> pay <b>' + money(total) + "</b> by Zelle to <b>" + esc(S.zelle.to) + "</b> (" + esc(S.zelle.name) + ") with <b>" + no + "</b> in the memo. Screenshot this page for your records.</div>" +
           '<a class="btn btn-pist" href="' + ROOT + '" style="align-self:flex-start">Back to home</a></div>';
         window.scrollTo(0, 0);
       }).catch(function () { showManual(); });
@@ -334,6 +337,44 @@
     });
   }
 
+  /* ---------- Shireen's confirm / decline page ---------- */
+  function packOrder(o) {
+    var s = btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+    return s.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function unpackOrder(h) {
+    try {
+      var s = h.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+      return JSON.parse(decodeURIComponent(escape(atob(s))));
+    } catch (e) { return null; }
+  }
+  function confirmPage() {
+    var root = $("#confirm-root"); if (!root) return;
+    var o = unpackOrder(location.hash.slice(1));
+    if (!o || !o.n) { root.innerHTML = '<div class="panel"><h1 style="font-size:30px">Order link not found</h1><p class="small">Open this page from the "Confirm or decline" link in a Halawa Kida order email.</p></div>'; return; }
+    var first = String(o.c || "").split(" ")[0] || "there";
+    var phone = String(o.p || "").replace(/\D/g, ""); if (phone.length === 10) phone = "1" + phone;
+    var place = o.m === "Delivery" ? "Delivery to " + o.a + " on " + o.w : "Pickup on " + o.w;
+    var yes = "Hi " + first + ", this is Shireen from Halawa Kida. Your order " + o.n + " is confirmed!\n\n" + o.i + "\nTotal: " + o.t + "\n" + place +
+      "\n\nPlease send " + o.t + " by Zelle to " + S.zelle.to + " (" + S.zelle.name + ") and put " + o.n + " in the memo. Thank you so much!";
+    var no = "Hi " + first + ", this is Shireen from Halawa Kida. Thank you for your order " + o.n + "! Unfortunately I can't make it for " + o.w +
+      ". Would another day work for you? Just reply and I'll take care of you. Please don't send any payment for this order.";
+    function sms(t) { return "sms:+" + phone + "?&body=" + encodeURIComponent(t); }
+    function mail(subj, t) { return "mailto:" + o.e + "?subject=" + encodeURIComponent(subj) + "&body=" + encodeURIComponent(t); }
+    root.innerHTML =
+      '<div class="panel" style="display:flex;flex-direction:column;gap:14px">' +
+      '<div class="eyebrow" style="color:var(--pist-ink)">Order ' + esc(o.n) + "</div>" +
+      '<h1 style="font-size:34px">' + esc(o.c) + "</h1>" +
+      '<p style="margin:0"><b>' + esc(place) + "</b><br>" + esc(o.p) + " · " + esc(o.e) + "</p>" +
+      '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(o.i) + "\nTotal: " + esc(o.t) + "</pre>" +
+      (o.x ? '<p class="notice" style="margin:0"><b>Customer notes:</b> ' + esc(o.x) + "</p>" : "") + "</div>" +
+      '<div class="panel" style="display:flex;flex-direction:column;gap:12px;margin-top:16px"><h2 style="font-size:24px;margin:0">Can you make it?</h2>' +
+      '<p class="small" style="margin:0">Each button opens a ready-to-send message to the customer. You can edit it before you press send.</p>' +
+      '<div class="actions"><a class="btn btn-pist" href="' + sms(yes) + '">Yes, confirm by text</a><a class="btn btn-dark" href="' + mail("Your Halawa Kida order " + o.n + " is confirmed", yes) + '">Confirm by email</a></div>' +
+      '<div class="actions" style="margin-top:4px"><a class="btn btn-ghost" href="' + sms(no) + '">Can\'t make it (text)</a><a class="btn btn-ghost" href="' + mail("About your Halawa Kida order " + o.n, no) + '">Can\'t make it (email)</a></div>' +
+      '<details><summary class="small" style="cursor:pointer">See the confirmation message</summary><pre style="white-space:pre-wrap;font:inherit;margin:8px 0 0">' + esc(yes) + "</pre></details></div>";
+  }
+
   /* ---------- boot ---------- */
   var h = $("#site-header"); if (h) h.outerHTML = header();
   var ft = $("#site-footer"); if (ft) ft.outerHTML = footer();
@@ -345,6 +386,7 @@
   if (PAGE === "menu") menuPage();
   if (PAGE === "order") orderPage();
   if (PAGE === "catering") cateringPage();
+  if (PAGE === "confirm") { confirmPage(); window.addEventListener("hashchange", confirmPage); }
   updateCount();
   window.addEventListener("storage", updateCount);
 })();

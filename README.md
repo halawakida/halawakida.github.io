@@ -18,6 +18,12 @@ Checkout emails the order through Web3Forms (key `web3formsKey` in config.js; ac
 If sending ever fails, the customer gets one-tap "Text my order" / "Email my order" buttons instead, so no order is lost.
 Orders must be at least `leadHours` (24) hours ahead. Live site: https://halawakida.github.io
 
+## Confirming orders
+
+Every order email has a "CONFIRM OR DECLINE THIS ORDER" link. It opens `/confirm/` with the order, and buttons that
+open a ready-to-send text or email to the customer: confirmed (with Zelle instructions) or can't make it.
+Customers are told their order is not confirmed and not to pay until Shireen confirms.
+
 ## Pages
 
 - `/` home · `/menu/` menu (the QR code target) · `/order/` cart and checkout · `/catering/` quote form
