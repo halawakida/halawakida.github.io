@@ -163,13 +163,29 @@
   }
 
   /* ---------- sending ---------- */
+  function canSend() { return !!(S.web3formsKey && S.web3formsKey.trim()); }
   function send(payload) {
-    return fetch("https://formsubmit.co/ajax/" + S.orderEmail.trim(), {
-      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify(payload)
+    if (!canSend()) return Promise.reject(new Error("not set up"));
+    var body = { access_key: S.web3formsKey.trim(), subject: payload._subject, from_name: "Halawa Kida website", replyto: payload.email, botcheck: "" };
+    Object.keys(payload).forEach(function (k) { if (k.charAt(0) !== "_") body[k] = payload[k]; });
+    return fetch("https://api.web3forms.com/submit", {
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify(body)
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) {
-      if (!r.ok || String(j.success) !== "true") throw new Error(j.message || ("HTTP " + r.status));
+      if (!r.ok || !j.success) throw new Error(j.message || ("HTTP " + r.status));
       return j;
     }); });
+  }
+  // One-tap backup: the customer sends the order themselves by text or email. Nothing is ever lost.
+  function manualSend(title, text) {
+    var num = String(S.textNumber || "").replace(/\D/g, ""), pretty = num.length === 10 ? "(" + num.slice(0, 3) + ") " + num.slice(3, 6) + "-" + num.slice(6) : num;
+    var sms = "sms:+1" + num + "?&body=" + encodeURIComponent(text);
+    var mail = "mailto:" + S.orderEmail + "?subject=" + encodeURIComponent(title) + "&body=" + encodeURIComponent(text);
+    return '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px">' +
+      '<h1 style="font-size:34px">Last step: send it to Shireen</h1>' +
+      '<p style="margin:0">Tap one button. Your order is already written out, you just press send.</p>' +
+      '<div class="actions"><a class="btn btn-pist" href="' + sms + '">Text my order</a><a class="btn btn-dark" href="' + mail + '">Email my order</a></div>' +
+      '<p class="small" style="margin:0">Or send it yourself to ' + esc(pretty) + " or " + esc(S.orderEmail) + ":</p>" +
+      '<textarea readonly style="min-height:220px" aria-label="Your order">' + esc(text) + "</textarea></div>";
   }
   function orderNo() {
     var d = new Date(), a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", s = "";
@@ -255,6 +271,11 @@
       var no = orderNo(), lines = cartLines(), total = cartTotal();
       var itemsText = lines.map(function (l) { return l.qty + " × " + l.item.name + " (" + l.opt.label + ") — " + money(l.opt.price * l.qty); }).join("\n");
       var whenText = prettyDate(v("date")) + " at " + label12(v("time"));
+      var manualText = "Hi Shireen! New Halawa Kida order " + no + "\n\nName: " + v("name") + "\nPhone: " + v("phone") + "\nEmail: " + v("email") +
+        "\n" + method + ": " + whenText + (method === "Delivery" ? "\nAddress: " + v("address") + " " + v("zip") : "") +
+        "\n\n" + itemsText + "\nTotal: " + money(total) + (v("notes") ? "\n\nNotes: " + v("notes") : "") + "\n\nI'll pay by Zelle once you confirm.";
+      function showManual() { saveCart([]); root.innerHTML = manualSend("Halawa Kida order " + no, manualText); window.scrollTo(0, 0); }
+      if (!canSend()) { showManual(); return; }
       var btn = $("#place"); btn.disabled = true; btn.textContent = "Sending your order…";
       send({
         _subject: "New order " + no + " · " + v("name") + " · " + method + " " + whenText,
@@ -267,16 +288,13 @@
         Items: itemsText, Total: money(total), Payment: "Zelle to " + S.zelle.to + " (pending)", Notes: v("notes") || "—"
       }).then(function () {
         saveCart([]);
-        root.innerHTML = '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px"><div class="ok"><b>Order received.</b> A confirmation is on its way to ' + esc(v("email")) + ".</div>" +
+        root.innerHTML = '<div class="panel" style="max-width:720px;margin:40px auto;display:flex;flex-direction:column;gap:16px"><div class="ok"><b>Order sent to Shireen.</b> She will confirm by text or email. Screenshot this page for your records.</div>' +
           '<h1 style="font-size:36px">Thank you, ' + esc(v("name").split(" ")[0]) + '!</h1><p style="margin:0">Order <b>' + no + "</b> · " + esc(method) + " · " + esc(whenText) + "</p>" +
           '<pre style="white-space:pre-wrap;font:inherit;background:var(--pist-tint);border-radius:12px;padding:14px;margin:0">' + esc(itemsText) + "\nTotal: " + money(total) + "</pre>" +
           '<div class="notice"><b>Next:</b> Shireen will confirm your order by email or text. Then pay <b>' + money(total) + "</b> by Zelle to <b>" + esc(S.zelle.to) + "</b> (" + esc(S.zelle.name) + ") with <b>" + no + "</b> in the memo.</div>" +
           '<a class="btn btn-pist" href="' + ROOT + '" style="align-self:flex-start">Back to home</a></div>';
         window.scrollTo(0, 0);
-      }).catch(function (x) {
-        btn.disabled = false; btn.textContent = "Place order · " + money(total);
-        err.innerHTML = "Your order didn't go through (" + esc(x.message) + "). Please try again, or email it to <a href=\"mailto:" + esc(S.orderEmail) + "\">" + esc(S.orderEmail) + "</a>.";
-      });
+      }).catch(function () { showManual(); });
     }
     draw();
   }
@@ -298,6 +316,11 @@
       if (v("date") < firstDate()) { err.textContent = "Events need at least " + S.leadHours + " hours notice."; return; }
       if (v("_honey")) return;
       err.textContent = "";
+      var cText = "Hi Shireen! Catering request from the Halawa Kida website\n\nName: " + v("name") + "\nPhone: " + v("phone") + "\nEmail: " + v("email") +
+        "\nEvent: " + v("type") + " on " + prettyDate(v("date")) + "\nGuests: " + v("guests") + "\nPackage: " + pk.value.split("|")[0] + "\n" + est.textContent +
+        "\n" + v("method") + (v("notes") ? "\nNotes: " + v("notes") : "");
+      function showManualC() { f.outerHTML = manualSend("Catering request", cText); }
+      if (!canSend()) { showManualC(); return; }
       var btn = $("#c-send"); btn.disabled = true; btn.textContent = "Sending…";
       send({
         _subject: "Catering request · " + v("name") + " · " + prettyDate(v("date")) + " · " + v("guests") + " guests",
@@ -307,10 +330,7 @@
         Guests: v("guests"), Package: pk.value.split("|")[0], Estimate: est.textContent, "Pickup or delivery": v("method"), Notes: v("notes") || "—"
       }).then(function () {
         f.innerHTML = '<div class="ok"><b>Request sent.</b> Shireen will reply to ' + esc(v("email")) + " with a quote.</div>";
-      }).catch(function (x) {
-        btn.disabled = false; btn.textContent = "Send my request";
-        err.innerHTML = "That didn't send (" + esc(x.message) + "). Please try again or email <a href=\"mailto:" + esc(S.orderEmail) + "\">" + esc(S.orderEmail) + "</a>.";
-      });
+      }).catch(function () { showManualC(); });
     });
   }
 

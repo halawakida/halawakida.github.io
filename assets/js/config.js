@@ -12,6 +12,13 @@ window.HK_SETTINGS = {
   // Every order and catering request is emailed here.
   orderEmail: "shireen.abourehab@gmail.com",
 
+  // Automatic order emails (Web3Forms). Paste the Access Key between the quotes.
+  // While this is empty, customers send their order by text or email with one tap instead.
+  web3formsKey: "",
+
+  // Customers can text their order here (also the fallback if email sending ever fails).
+  textNumber: "7322776199",
+
   // How customers pay.
   zelle: { to: "732-277-6199", name: "Shireen Abourehab" },
 
